@@ -56,7 +56,7 @@ public class ZKServerQuorum implements Runnable{
 	}
 
 	public static void formCluster(int server_num){
-		//配置参数
+		//閰嶇疆鍙傛暟
 		setupCluster(server_num);
 		logger.info("waiting for forming cluster....");
 		try {
@@ -68,7 +68,7 @@ public class ZKServerQuorum implements Runnable{
 	}
 	
 	public static void main(String[] args) {
-		//配置参数
+		//閰嶇疆鍙傛暟
 		setupCluster(4);
 		logger.info("waiting for forming cluster....");
 		try {

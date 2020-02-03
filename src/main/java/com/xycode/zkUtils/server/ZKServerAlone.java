@@ -13,8 +13,8 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 
 public class ZKServerAlone {
-	int numConnections = 5000;//¿É½ÓÊÜµÄÁ¬½ÓÊıÁ¿
-	int tickTime = 2000;//ĞÄÌøÊ±¼ä¼ä¸ô
+	int numConnections = 5000;//å¯æ¥å—çš„è¿æ¥æ•°é‡
+	int tickTime = 2000;//å¿ƒè·³æ—¶é—´é—´éš”
 	File snapDir= new File(System.getProperty("java.io.tmpdir"), "zookeeper/snap").getAbsoluteFile();
 	File logDir=new File(System.getProperty("java.io.tmpdir"), "zookeeper/log").getAbsoluteFile();
 	NIOServerCnxnFactory standaloneServerFactory = new NIOServerCnxnFactory();
@@ -65,15 +65,15 @@ public class ZKServerAlone {
 					        System.out.println("[WatchedEvent-"+Thread.currentThread().getId()+"]: "+event.getState() + "["+event.getType()+"],at "+event.getPath());
 					    }
 					});
-					//ÒòÎª´´½¨Zookeeper clientÊÇÒì²½µÄ£¬ËùÒÔÔÚÕâÀï×îºÃµÈ´ıÒ»ÏÂ£¬·ñÔò¿ÉÄÜ»á³ö´í
+					//å› ä¸ºåˆ›å»ºZookeeper clientæ˜¯å¼‚æ­¥çš„ï¼Œæ‰€ä»¥åœ¨è¿™é‡Œæœ€å¥½ç­‰å¾…ä¸€ä¸‹ï¼Œå¦åˆ™å¯èƒ½ä¼šå‡ºé”™
 					while(zk.getState()!=States.CONNECTED) {
 						Thread.sleep(20);
 					}
 					
-					//ÒòÎªPERSISTENTÀàĞÍµÄ½Úµã²ÅÄÜ´´½¨×Ó½Úµã£¬ËùÒÔÕâÀïÖ¸¶¨ÎªPERSISTENTÀàĞÍ
+					//å› ä¸ºPERSISTENTç±»å‹çš„èŠ‚ç‚¹æ‰èƒ½åˆ›å»ºå­èŠ‚ç‚¹ï¼Œæ‰€ä»¥è¿™é‡ŒæŒ‡å®šä¸ºPERSISTENTç±»å‹
 			        zk.create("/com/xycode", "com/xycode".getBytes(), Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
 			        
-			        // ´´½¨Ò»¸ö×ÓÄ¿Â¼½Úµã
+			        // åˆ›å»ºä¸€ä¸ªå­ç›®å½•èŠ‚ç‚¹
 			        zk.exists("/com/xycode/test_1",true);
 			        zk.create("/com/xycode/test_1", "test_1".getBytes(), Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
 			        System.out.println(new String(zk.getData("/com/xycode/test_1",true,null)));

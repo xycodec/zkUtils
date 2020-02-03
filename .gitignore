@@ -1,9 +1,9 @@
 zkutils.properties
 
-version-2
-src/main/resources/*.dynamic.next
+version-2/
 
-target/classes
-target/generated-sources
-target/maven-archiver
-target/maven-status
+target/classes/
+target/generated-sources/
+target/maven-status/
+target/maven-archiver/
+

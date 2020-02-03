@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    status指定全局日志等级(可能会被loggers的root level覆盖)
+-->
+<Configuration status="warn" name="log4j2ConfigureXML">
+
+    <Appenders>
+        <!--
+        定义标准输出的日志格式(SYSTEM_OUT)
+        %d: 表示日期
+        %level:表示日志级别，%-5level,表示5个占位符
+        %t: 方法名
+        %m: 消息体(即我们填的信息)
+        %C: 包名 (%F: 类文件名,这里没加)
+        %L: 行号
+
+        ThresholdFilter过滤器,这里指定接受的日志级别,低于该级别的日志直接丢弃
+        -->
+        <Console name="Console" target="SYSTEM_OUT">
+            <PatternLayout pattern="%d [%-5level][%t] %m (%C:%L) %n"/>
+            <ThresholdFilter level="debug" onMatch="ACCEPT" onMismatch="DENY"/>
+        </Console>
+
+
+    </Appenders>
+
+
+    <Loggers>
+
+        <!-- 日志文件设置为warn级别 ,控制台打印info级别-->
+        <logger name="myLogger" >
+            <AppenderRef ref="Console" level="debug"/>
+        </logger>
+
+        <logger name="testLogger">
+            <AppenderRef ref="Console" level="info"/>
+        </logger>
+
+        <logger name="org.apache.zookeeper">
+            <AppenderRef ref="Console" level="warn"/>
+        </logger>
+
+        <!--
+            root level指定Appender的日志等级,root level会影响到上面logger的输出,当上面logger的日志级别低于root level时,
+            就不会输出了,但是当root level低于上面的logger的日志级别时,将会按照上面的logger的level来输出
+            AppenderRef ref引用上面定义的日志Appender
+
+            总结一下:能影响到输出的有ThresholdFilter level,logger level, root level
+            最终的输出级别是max{ThresholdFilter level,logger level, root level}
+            eg:某个Appender的ThresholdFilter level为debug,引用该Appender的logger的level为info,全局的root level为trace,
+            最终这个logger的输出级别就为三个level中最高的,即info
+        -->
+        <root level="debug">
+
+        </root>
+
+    </Loggers>
+
+</Configuration>

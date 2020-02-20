@@ -22,6 +22,6 @@ public interface ZKMultipleListener extends ZKListener {
 
     @Override
     @Deprecated default void listen(String path){//对于ZKMultipleListener来说,禁止使用该方法
-        throw new IllegalArgumentException("Argument should be a list");
+        throw new IllegalArgumentException("ZKMultipleListener's path should be a list");
     }
 }

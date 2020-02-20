@@ -15,8 +15,7 @@ public interface ZKListener extends Watcher {
 
     /**
      * 监听指定path,依此回调process()
-     * 该方法可以多次调用
-
+     * 该方法可以多次调用覆盖path
      * @param path
      */
     void listen(String path);

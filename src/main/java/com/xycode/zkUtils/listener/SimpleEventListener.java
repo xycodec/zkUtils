@@ -3,6 +3,7 @@ package com.xycode.zkUtils.listener;
 import com.xycode.zkUtils.zkClient.ZKCli;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.WatchedEvent;
+import org.testng.annotations.Test;
 
 /**
  * ClassName: SimpleEventListener
@@ -40,7 +41,8 @@ public class SimpleEventListener extends AbstractEventListener {
 
     }
 
-    public static void main(String[] args) {
+    @Test
+    public void test() {
         String path="/seqLockPath";
         try {
             ZKListener listener=new SimpleEventListener(path) {

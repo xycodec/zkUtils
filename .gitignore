@@ -1,9 +1,6 @@
 zkutils.properties
 
-version-2/
 
-target/classes/
-target/generated-sources/
-target/maven-status/
-target/maven-archiver/
+/target/
+
 

@@ -107,9 +107,7 @@ public class MultipleEventListener extends AbstractMultipleEventListener {
             zkCli.delete("/d");
 
             zkCli.close();
-        } catch (KeeperException e) {
-            e.printStackTrace();
-        } catch (InterruptedException e) {
+        } catch (KeeperException | InterruptedException e) {
             e.printStackTrace();
         }
     }

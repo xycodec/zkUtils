@@ -12,6 +12,9 @@ import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 
+/**
+ * 建议还是使用ZKServerQuorum
+ */
 public class ZKServerAlone {
 	int numConnections = 5000;//可接受的连接数量
 	int tickTime = 2000;//心跳时间间隔

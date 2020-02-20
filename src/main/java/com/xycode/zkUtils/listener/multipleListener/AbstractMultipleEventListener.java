@@ -25,7 +25,6 @@ public abstract class AbstractMultipleEventListener implements ZKMultipleListene
     @Override
     public void process(WatchedEvent event) {
         if(paths==null) return;
-//        System.out.println(event.getType()+", "+event.getPath());
         for(String path:paths){
             if(path.equals(event.getPath())){
                 if(event.getType().equals(Watcher.Event.EventType.NodeDeleted)){

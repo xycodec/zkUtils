@@ -6,6 +6,7 @@ import org.apache.zookeeper.server.quorum.QuorumPeerConfig.ConfigException;
 import org.apache.zookeeper.server.quorum.QuorumPeerMain;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.annotations.Test;
 
 import java.io.IOException;
 import java.util.concurrent.CountDownLatch;
@@ -64,18 +65,10 @@ public class ZKServerQuorum implements Runnable{
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
-		logger.info("cluster has been formed.");
-	}
-	
-	public static void main(String[] args) {
-		//配置参数
-		setupCluster(4);
-		logger.info("waiting for forming cluster....");
-		try {
-			latch.await(30,TimeUnit.SECONDS);
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-		}
 		logger.info("ZKServer cluster started!");
+	}
+
+	public static void main(String[] args) {
+		formCluster(4);
 	}
 }

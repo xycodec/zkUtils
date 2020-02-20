@@ -87,11 +87,7 @@ public class MyEventListener extends AbstractEventListener {
             TimeUnit.SECONDS.sleep(10);
             zkCli.delete(path);
             zkClient.close();
-        } catch (KeeperException e) {
-            e.printStackTrace();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        } catch (TimeoutException e) {
+        } catch (KeeperException | InterruptedException | TimeoutException e) {
             e.printStackTrace();
         }
 

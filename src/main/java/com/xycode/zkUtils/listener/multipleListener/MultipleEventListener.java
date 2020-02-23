@@ -4,6 +4,7 @@ import com.xycode.zkUtils.zkClient.ZKCli;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.ZooDefs;
+import org.testng.annotations.Test;
 
 import java.util.Arrays;
 import java.util.List;
@@ -40,7 +41,8 @@ public class MultipleEventListener extends AbstractMultipleEventListener {
     public void NodeChildrenChangedHandler(WatchedEvent event) {
     }
 
-    public static void main(String[] args) {
+    @Test
+    public void test() {
         try {
             MultipleEventListener listener=new MultipleEventListener(Arrays.asList("/a","/b","/c","/d")) {
                 @Override

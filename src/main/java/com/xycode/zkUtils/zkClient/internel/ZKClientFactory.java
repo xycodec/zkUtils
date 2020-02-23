@@ -4,6 +4,8 @@ import com.xycode.zkUtils.listener.ZKListener;
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooKeeper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.concurrent.CountDownLatch;
@@ -11,6 +13,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 public class ZKClientFactory {
+    private static final Logger logger= LoggerFactory.getLogger("myLogger");
     /**
      * @param zkAddr
      * @return Zookeeper Client, with a default watcher
@@ -25,12 +28,15 @@ public class ZKClientFactory {
                     Event.KeeperState eventState=event.getState();
                     Event.EventType eventType=event.getType();
                     if(eventState.equals(Event.KeeperState.SyncConnected)&&eventType.equals(Event.EventType.None)){
-                        System.out.println(Thread.currentThread().getName()+": connection established");
+                        logger.debug(Thread.currentThread().getName()+": connection established");
                         countDownLatch.countDown();//成功建立连接
                     }else if(eventState.equals(Event.KeeperState.Disconnected)) {
-                        System.out.println(Thread.currentThread().getName()+": disconnected");
+                        logger.debug(Thread.currentThread().getName()+": disconnected");
                     }else{
-                        System.out.println(Thread.currentThread().getName()+": ("+eventType+") at \""+event.getPath()+"\"");
+                        if(event.getPath()!=null)
+                            logger.debug(Thread.currentThread().getName()+": (eventType: "+eventType+") at \""+event.getPath()+"\"");
+                        else
+                            logger.debug(Thread.currentThread().getName()+": (eventType: "+eventType+")");
                     }
                 }
             });
@@ -68,7 +74,7 @@ public class ZKClientFactory {
                     Event.KeeperState eventState=event.getState();
                     Event.EventType eventType=event.getType();
                     if(eventState.equals(Event.KeeperState.SyncConnected)&&eventType.equals(Event.EventType.None)) {
-                        System.out.println("[WatchedEvent-" + Thread.currentThread().getId() + "]: connection established");
+                        logger.debug("[WatchedEvent-" + Thread.currentThread().getId() + "]: connection established");
                         countDownLatch.countDown();//成功建立连接
                     }
                 }

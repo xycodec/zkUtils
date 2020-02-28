@@ -97,9 +97,10 @@ public class ZKDistributedLock {
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-        }else{//prevPath不存在,这时就不用等待了
-            zkCli.unregisterListener(prevPath);//监听器被触发后,实际上就没了,所以这里可能会抛异常(除非锁没被触发)
+        }else{//prevPath不存在,可能是prevID对应的节点突然挂了,那样的话就去下面判断curID是否是队头节点
+            zkCli.unregisterListener(prevPath);//清理无用的监听器
         }
+        //判断curID是否是队头节点
         ids=zkCli.getChildren(lockPath);//先前的子节点在等待过程中可能已经发生了改变,所以这里要及时刷新,以获得最新数据
         Collections.sort(ids);
         if(!curID.equals(ids.get(0))) {
@@ -140,7 +141,7 @@ public class ZKDistributedLock {
         zkCli.close();
     }
 
-    //test,notice: 涉及到多线程貌似使用测试框架就会出错...
+    //test, notice: 貌似这里使用测试框架会出错...
     public static void main(String[] args) {
         String ZKC_ADDRESS="127.0.0.1:2181,127.0.0.1:2182,127.0.0.1:2183";
         ZKCli zkCli=new ZKCli(ZKC_ADDRESS);

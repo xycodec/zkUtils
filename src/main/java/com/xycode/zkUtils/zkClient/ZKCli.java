@@ -411,7 +411,7 @@ public class ZKCli {
         return zk!=null&&zk.getState().equals(ZooKeeper.States.CONNECTED);
     }
 
-    public void close(){
+    public void close() {
         try {
             zk.close();
         } catch (InterruptedException e) {

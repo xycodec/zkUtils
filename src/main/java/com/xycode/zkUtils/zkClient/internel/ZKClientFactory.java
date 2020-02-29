@@ -99,7 +99,7 @@ public class ZKClientFactory {
      *
      * @param zkAddr
      * @param listener your own define listener
-     * @return Zookeeper Client
+     * @return Zookeeper Client with a special listener
      */
     public static ZooKeeper createZKClient(String zkAddr, ZKListener listener) throws TimeoutException {
         ZooKeeper zk=null;

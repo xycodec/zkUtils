@@ -10,7 +10,6 @@ public abstract class AbstractEventListener implements ZKListener {
     }
 
     public AbstractEventListener(){
-
     }
 
     @Override

@@ -5,10 +5,8 @@ import com.xycode.zkUtils.listener.ZKListener;
 import com.xycode.zkUtils.zkClient.ZKCli;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.WatchedEvent;
-import org.apache.zookeeper.ZooDefs;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.testng.annotations.Test;
 
 import java.util.Collections;
 import java.util.List;
@@ -29,7 +27,7 @@ public class ZKDistributedLock {
     private String curID;//当前ZKCli占有的顺序ID
     private String prevID;//前一个顺序ID,当前ZKCLi要等待它
 
-    private ZKCli zkCli;
+    private ZKCli zkCli;//竞争分布式锁的zkCli
 
     public ZKDistributedLock(String lockPath, ZKCli zkCli){
         this.lockPath=lockPath;
@@ -82,7 +80,7 @@ public class ZKDistributedLock {
         Collections.sort(ids);
         for(int i=0;i<ids.size();++i){
             if(ids.get(i).equals(curID)){
-                if(i==0) return;//前面的节点出现异常挂了,或者已经主动delete了,curID节点位于最前头,这时没有对应的prevID
+                if(i==0) return;//前面的节点delete了,并且curID节点位于最前头,这时return尝试tryLock
                 prevID=ids.get(i-1);//由于可能chainBroken Exception,prevID与curID可能未必连续
                 break;
             }
@@ -110,8 +108,8 @@ public class ZKDistributedLock {
             //例如: 1 -> 2 -> 3(3意外挂掉了) -> curID -> ...,即变成了1 -> 2 ->   -> curID -> ...
             //这时curID是会监听到删除事件的,但是前面实际上还有ZKCli在等待,
             //再次waitLock()就是想变成这样1 -> 2 -> curID -> ...
-            waitLock();
             logger.warn("[Fix chainBroken Exception]: try waitLock again!");
+            waitLock();
         }else{
             logger.debug("Agent-{} acquire lock",curID);
         }
@@ -149,7 +147,7 @@ public class ZKDistributedLock {
         if(!zkCli.exists(path)) {
             try {
                 //先创建一个永久节点
-                zkCli.createPersistent(path, "", ZooDefs.Ids.OPEN_ACL_UNSAFE);
+                zkCli.createPersistent(path, "");
             } catch (KeeperException | InterruptedException e) {
                 e.printStackTrace();
             }
@@ -164,7 +162,7 @@ public class ZKDistributedLock {
                 try{
                     lock.lock();
                     //zkCli此时获得了锁,可以做一些独占的事情
-                    System.out.println("Agent-" + lock.curID + " working...");
+                    logger.info("Agent-{} working...",lock.curID);
                     try {
                         TimeUnit.SECONDS.sleep(1);
                     } catch (InterruptedException e) {

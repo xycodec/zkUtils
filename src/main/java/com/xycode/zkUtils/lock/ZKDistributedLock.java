@@ -3,6 +3,8 @@ package com.xycode.zkUtils.lock;
 import com.xycode.zkUtils.listener.SimpleEventListener;
 import com.xycode.zkUtils.listener.ZKListener;
 import com.xycode.zkUtils.zkClient.ZKCli;
+import com.xycode.zkUtils.zkClient.ZKCliGroup;
+import com.xycode.zkUtils.zkClient.ZKConnectionPool;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.WatchedEvent;
 import org.slf4j.Logger;
@@ -127,7 +129,7 @@ public class ZKDistributedLock {
     /**
      * 解锁操作,就是删除当前占用的顺序节点
      */
-    public void unlock(){
+    public void unlock(boolean close){
         final String curPath=lockPath+"/"+curID;
         try {
             if(zkCli.exists(curPath))
@@ -136,13 +138,22 @@ public class ZKDistributedLock {
             e.printStackTrace();
         }
         logger.debug("Agent-{} release lock",curID);
-        zkCli.close();
+        if(close) zkCli.close();
+    }
+
+    //默认关闭连接
+    public void unlock(){
+        unlock(true);
     }
 
     //test, notice: 貌似这里使用测试框架会出错...
     public static void main(String[] args) {
-        String ZKC_ADDRESS="127.0.0.1:2181,127.0.0.1:2182,127.0.0.1:2183";
-        ZKCli zkCli=new ZKCli(ZKC_ADDRESS);
+        final String ZKC_ADDRESS="127.0.0.1:2181,127.0.0.1:2182,127.0.0.1:2183";
+        //notice: 这里使用自实现的ZKCliGroup来测试,
+        //        只使用5个连接构成的连接池,提供给20个线程来使用,显然达到了连接复用的目的
+        //        暂时没发现什么问题
+        ZKCliGroup zkCliGroup=new ZKCliGroup(ZKC_ADDRESS,5);
+        ZKCli zkCli=zkCliGroup.getZKConnection();
         String path="/seqLockPath";
         if(!zkCli.exists(path)) {
             try {
@@ -152,11 +163,12 @@ public class ZKDistributedLock {
                 e.printStackTrace();
             }
         }
-        zkCli.close();
-        Thread[] t=new Thread[10];
+        zkCliGroup.releaseZKConnection(zkCli);
+
+        Thread[] t=new Thread[20];
         for(int i=0;i<t.length;++i){
             t[i]= new Thread(() -> {
-                ZKCli zkCli1 =new ZKCli(ZKC_ADDRESS);
+                ZKCli zkCli1 =zkCliGroup.getZKConnection();
                 //tip: 用法
                 ZKDistributedLock lock=new ZKDistributedLock(path, zkCli1);
                 try{
@@ -169,7 +181,8 @@ public class ZKDistributedLock {
                         e.printStackTrace();
                     }
                 }finally {
-                    lock.unlock();
+                    lock.unlock(false);
+                    zkCliGroup.releaseZKConnection(zkCli1);
                 }
             });
         }

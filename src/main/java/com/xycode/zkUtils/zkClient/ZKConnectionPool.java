@@ -18,6 +18,7 @@ import static java.lang.Thread.currentThread;
  * @Date: 2019/11/7
  * @Description: this is description of the ZKCliGroup class
  **/
+@Deprecated
 public class ZKConnectionPool {
     /**
      * TODO: 一个优化性能的想法,即使用一组ZKCli,这一组ZKCli中只有一个关联lockPath(看成boss),
@@ -51,6 +52,7 @@ public class ZKConnectionPool {
         this.isClosed=false;
         for(int i=0;i<size;++i){
             connections[i]=new ZKConnection(zkAddr,new SimpleEventListener());
+            connections[i].access=false;
         }
     }
 
@@ -64,9 +66,10 @@ public class ZKConnectionPool {
         assert !isClosed;
         while(true){
             for(int i=0;i<size;++i){
-                if(states.get(i)==0&&connections[i].alive()){//空闲状态
+                if(states.get(i)==0&&connections[i].aliveConnection()){//空闲状态
                     if(states.compareAndSet(i,0,1)){//CAS成功,说明成功竞争到连接
                         logger.debug("{} get zkConnection: {}", currentThread().getName(),connections[i]);
+                        connections[i].access=true;
                         return connections[i];
                     }
                 }
@@ -96,6 +99,7 @@ public class ZKConnectionPool {
             ZooKeeper zk=(ZooKeeper)field.get(connection);
             zk.close();
 //            System.out.println(connection.alive());// ->false
+            connection.access=false;
         } catch (NoSuchFieldException | IllegalAccessException | InterruptedException e) {
             e.printStackTrace();
         }
@@ -111,7 +115,7 @@ public class ZKConnectionPool {
         ZKConnection zkConnection= (ZKConnection) connection;
 
         for(int i=0;i<size;++i){
-            if(!connections[i].alive()){//检测到一个连接已失效,就重建一个连接
+            if(!connections[i].aliveConnection()){//检测到一个连接已失效,就重建一个连接
                 logger.warn("Detect ZKCliGroup's connection failure, try to create a new connection");
                 //先close,即释放一些资源
                 closeConnection(zkConnection);
@@ -119,7 +123,7 @@ public class ZKConnectionPool {
             }
             if(connections[i]==zkConnection){//若连接是待释放连接
                 states.set(i,0);//因为连接只能被一个线程持有,所以这里是线程安全的,不用CAS
-
+                connections[i].access=false;
                 //有连接空出来了,通知所有处于等待的线程
                 logger.debug("{} release zkConnection: {}", currentThread().getName(),zkConnection);
                 synchronized (this){
@@ -142,40 +146,64 @@ public class ZKConnectionPool {
         connections=null;
         zkAddr=null;
     }
+
     //对ZKCli进行封装,主要是防止外部对ZKCliGroup内的ZKCli进行一些非法操作
+    //notice: 扩展性方面有问题(比如释放连接后,外部的引用仍然可以进行操作,这是非法的,
+    // 因此必须加入状态检测,但是这种架构进行这样的功能增强需要大量改动ZKCli的代码,因此废弃),
+    // 改成基于cglib的动态代理
     private static class ZKConnection extends ZKCli{
+        protected volatile boolean access;
+
         public ZKConnection(String zkAddress) {
             super(zkAddress);
         }
+
+//        public ZKConnection(ZKCli zkCli) {
+//            super(zkCli);
+//        }
 
         public ZKConnection(String zkAddress, ZKListener listener) {
             super(zkAddress, listener);
         }
 
+        private boolean aliveConnection(){
+            boolean flag=false;
+            try{
+                if(!access){
+                    access=true;
+                    flag=true;
+                }
+                return super.alive();
+            }finally {
+                if(flag) access=false;
+            }
+        }
         @Override
         public void close() {
-            logger.error("Illegal Operation: Close ZKCliGroup's connection externally");
+            logger.error("Illegal Operation: Close connection externally");
         }
 
         @Override
         public void reConnect() {
-            logger.error("Illegal Operation: ReConnect ZKCliGroup's connection externally");
+            logger.error("Illegal Operation: ReConnect connection externally");
         }
 
         @Override
         public void reConnect(ZKListener listener) {
-            logger.error("Illegal Operation: ReConnect ZKCliGroup's connection externally");
+            logger.error("Illegal Operation: ReConnect connection externally");
         }
 
         @Override
         public void addAuth(String auth) {
-            logger.error("Illegal Operation: Add auth to ZKCliGroup's connection externally");
+            logger.error("Illegal Operation: Add auth to connection externally");
         }
 
         @Override
         public void addAuth(String scheme, String auth) {
-            logger.error("Illegal Operation: Add auth to ZKCliGroup's connection externally");
+            logger.error("Illegal Operation: Add auth connection externally");
         }
+
+
 
     }
 
@@ -184,6 +212,7 @@ public class ZKConnectionPool {
         ZKCli zkCli= zkConnectionPool.getZKConnection();
         zkCli.close();//warn: 非法操作
         zkConnectionPool.releaseConnection(zkCli);
+//        zkCli.alive();//连接以释放,抛出AssertionError
         zkConnectionPool.shutdown();
 
         //测试反射方式关闭连接

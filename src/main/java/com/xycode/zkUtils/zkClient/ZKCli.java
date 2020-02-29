@@ -22,6 +22,11 @@ public class ZKCli {
     private ZooKeeper zk;
     private String zkAddress;
 
+//    public ZKCli(ZKCli zkCli) {
+//        this.zkAddress=zkCli.zkAddress;
+//        this.zk=zkCli.zk;
+//    }
+
     public ZKCli(String zkAddress) {
         this.zkAddress = zkAddress;
         try {
@@ -111,9 +116,7 @@ public class ZKCli {
     public String createPersistent(String path, String data, ArrayList<ACL> ids,boolean isWatch) throws KeeperException, InterruptedException {
         try {
             if(isWatch) zk.exists(path,true);//先注册监听器
-        } catch (KeeperException e) {
-            e.printStackTrace();
-        } catch (InterruptedException e) {
+        } catch (KeeperException | InterruptedException e) {
             e.printStackTrace();
         }
         return zk.create(path,data.getBytes(),ids, CreateMode.PERSISTENT);
@@ -141,9 +144,7 @@ public class ZKCli {
     public String createPersistentSeq(String path,String data,ArrayList<ACL> ids,boolean isWatch) throws KeeperException, InterruptedException {
         try {
             if(isWatch) zk.exists(path,true);//先注册监听器
-        } catch (KeeperException e) {
-            e.printStackTrace();
-        } catch (InterruptedException e) {
+        } catch (KeeperException | InterruptedException e) {
             e.printStackTrace();
         }
         return zk.create(path,data.getBytes(),ids,CreateMode.PERSISTENT_SEQUENTIAL);
@@ -170,9 +171,7 @@ public class ZKCli {
     public String createEphemeral(String path, String data, ArrayList<ACL> ids,boolean isWatch) throws KeeperException, InterruptedException {
         try {
             if(isWatch) zk.exists(path,true);//先注册监听器
-        } catch (KeeperException e) {
-            e.printStackTrace();
-        } catch (InterruptedException e) {
+        } catch (KeeperException | InterruptedException e) {
             e.printStackTrace();
         }
         return zk.create(path,data.getBytes(),ids, CreateMode.EPHEMERAL);
@@ -193,9 +192,7 @@ public class ZKCli {
     public String createEphemeralSeq(String path,String data,ArrayList<ACL> ids,boolean isWatch) throws KeeperException, InterruptedException {
         try {
             if(isWatch) zk.exists(path,true);//先注册监听器
-        } catch (KeeperException e) {
-            e.printStackTrace();
-        } catch (InterruptedException e) {
+        } catch (KeeperException | InterruptedException e) {
             e.printStackTrace();
         }
         return zk.create(path,data.getBytes(),ids,CreateMode.EPHEMERAL_SEQUENTIAL);
@@ -226,9 +223,7 @@ public class ZKCli {
         try {
             if(isWatch) zk.exists(path,true);//先注册监听器
             zk.setData(path,data,-1);
-        } catch (KeeperException e) {
-            e.printStackTrace();
-        } catch (InterruptedException e) {
+        } catch (KeeperException | InterruptedException e) {
             e.printStackTrace();
         }
     }
@@ -241,9 +236,7 @@ public class ZKCli {
         try {
             if(isWatch) zk.exists(path,true);//先注册监听器
             zk.setData(path,data.getBytes(),-1);
-        } catch (KeeperException e) {
-            e.printStackTrace();
-        } catch (InterruptedException e) {
+        } catch (KeeperException | InterruptedException e) {
             e.printStackTrace();
         }
     }
@@ -256,9 +249,7 @@ public class ZKCli {
         try {
             if(isWatch) zk.exists(path,true);//先注册监听器
             zk.setData(path,data.toString().getBytes(),-1);
-        } catch (KeeperException e) {
-            e.printStackTrace();
-        } catch (InterruptedException e) {
+        } catch (KeeperException | InterruptedException e) {
             e.printStackTrace();
         }
     }
@@ -271,9 +262,7 @@ public class ZKCli {
         try {
             if(isWatch) zk.exists(path,true);//先注册监听器
             zk.setData(path,data.toString().getBytes(),-1);
-        } catch (KeeperException e) {
-            e.printStackTrace();
-        } catch (InterruptedException e) {
+        } catch (KeeperException | InterruptedException e) {
             e.printStackTrace();
         }
     }
@@ -286,9 +275,7 @@ public class ZKCli {
         try {
             if(isWatch) zk.exists(path,true);//先注册监听器
             zk.setData(path,data.toString().getBytes(),-1);
-        } catch (KeeperException e) {
-            e.printStackTrace();
-        } catch (InterruptedException e) {
+        } catch (KeeperException | InterruptedException e) {
             e.printStackTrace();
         }
     }
@@ -296,18 +283,15 @@ public class ZKCli {
     @Deprecated
     public <T extends Serializable> void writeObjectData(String path,T t,boolean isWatch) throws IOException {
         byte[] bytes = null;
-        ByteArrayOutputStream bos = new ByteArrayOutputStream();
-        ObjectOutputStream oos = null;
-        try {
-            oos = new ObjectOutputStream(bos);
+
+        try (ByteArrayOutputStream bos = new ByteArrayOutputStream();
+             ObjectOutputStream oos = new ObjectOutputStream(bos);)
+        {
             oos.writeObject(t);
             oos.flush();
             bytes = bos.toByteArray();
         } catch (IOException e) {
             e.printStackTrace();
-        } finally {
-            bos.close();
-            oos.close();
         }
         if(bytes==null) throw new IOException("Serializable failure");
         writeData(path,bytes,isWatch);
@@ -326,9 +310,7 @@ public class ZKCli {
     public byte[] readData(String path){
         try {
             return zk.getData(path,false,null);
-        } catch (KeeperException e) {
-            e.printStackTrace();
-        } catch (InterruptedException e) {
+        } catch (KeeperException | InterruptedException e) {
             e.printStackTrace();
         }
         return null;
@@ -355,9 +337,7 @@ public class ZKCli {
         byte[] bytes=null;
         try {
             bytes=zk.getData(path,false,null);
-        } catch (KeeperException e) {
-            e.printStackTrace();
-        } catch (InterruptedException e) {
+        } catch (KeeperException | InterruptedException e) {
             e.printStackTrace();
         }
         if(bytes==null) return null;
@@ -370,9 +350,7 @@ public class ZKCli {
         List<String> result=null;
         try {
             result=zk.getChildren(path,isWatch);
-        } catch (KeeperException e) {
-            e.printStackTrace();
-        } catch (InterruptedException e) {
+        } catch (KeeperException | InterruptedException e) {
             e.printStackTrace();
         }
         return result;
@@ -390,9 +368,7 @@ public class ZKCli {
     public boolean exists(String path){
         try {
             return zk.exists(path, false) != null;
-        } catch (KeeperException e) {
-            e.printStackTrace();
-        } catch (InterruptedException e) {
+        } catch (KeeperException | InterruptedException e) {
             e.printStackTrace();
         }
         return false;
@@ -422,9 +398,7 @@ public class ZKCli {
     public void triggerListener(String path){
         try {
             zk.exists(path,true);
-        } catch (KeeperException e) {
-            e.printStackTrace();
-        } catch (InterruptedException e) {
+        } catch (KeeperException | InterruptedException e) {
             e.printStackTrace();
         }
     }
@@ -432,9 +406,7 @@ public class ZKCli {
     public void triggerChildListener(String path){
         try {
             zk.getChildren(path,true);
-        } catch (KeeperException e) {
-            e.printStackTrace();
-        } catch (InterruptedException e) {
+        } catch (KeeperException | InterruptedException e) {
             e.printStackTrace();
         }
     }

@@ -182,13 +182,20 @@ public class ZKCliGroup {
         private boolean aliveProxyConnection(){
             if(zkCli==null) return false;
             boolean flag=false;
-            if(!access){
-                access=true;
-                flag=true;
+            try {
+                if(!access){
+                    access=true;
+                    flag=true;
+                }
+                //如果一切正常的话,finally实际会在return之前执行,
+                //但是若return的结果需要一个函数来计算,那么这个函数的计算过程实际上是先于finally的,
+                //所以这里不会出现finally把access修改后再return最终结果,
+                //实际上的流程是先计算出zkCli.alive(),然后把计算结果存在当前函数的栈中,然后在真正return这个结果之前会执行finally语句块
+                //所以说access肯定是可访问的,zkCli.alive()可以正常执行
+                return zkCli.alive();
+            }finally {
+                if(flag) access=false;
             }
-            boolean result=zkCli.alive();
-            if(flag) access=false;
-            return result;
         }
 
     }

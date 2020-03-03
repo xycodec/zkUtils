@@ -77,13 +77,50 @@ public class ZKCliGroup {
                 }
             }
             //若没找到或竞争空闲连接失败,則当前线程进入等待(等待releaseConnection()的notifyAll())
-            synchronized (this){
-                try {
-                    logger.debug("{} is waiting for idle zkConnection", currentThread().getName());
-                    this.wait();
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
+            try {
+                logger.debug("{} is waiting for idle zkConnection", currentThread().getName());
+                this.wait();
+                logger.debug("{} is trying to scramble for idle zkConnection", currentThread().getName());
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+
+    }
+
+    /**
+     * 带超时参数的getZKConnection, 若超过了指定的时间,則返回null
+     * @param mills  超时时间单位 ms
+     * @return
+     */
+    public synchronized ZKCli getZKConnection(long mills){
+        if(isClosed) return null;
+        long future=System.currentTimeMillis()+mills;//未来发生超时的时间点
+        while(true){
+            for(int i=0;i<size;++i){
+                if(states[i]==0&&proxyZKClis[i].aliveProxyConnection()){//空闲状态
+                    states[i]=1;
+                    proxyZKClis[i].access=true;//warn: 当access为false时,貌似使用proxyZKClis[i].zkCli会出错,所以放到上面
+                    logger.debug("{} get zkConnection: {}", currentThread().getName(),proxyZKClis[i].zkCli);
+                    return proxyZKClis[i].zkCli;
                 }
+            }
+            //若没找到或竞争空闲连接失败,則当前线程进入等待(等待releaseConnection()的notifyAll())
+            if(System.currentTimeMillis()>=future) {//超时
+                logger.warn("{} is waiting timeout", currentThread().getName());
+                return null;
+            }
+            try {
+                logger.debug("{} is waiting for idle zkConnection", currentThread().getName());
+                this.wait(mills);
+                if(System.currentTimeMillis()>=future){//超时
+                    logger.warn("{} is waiting timeout", currentThread().getName());
+                    return null;
+                }else{//被其它线程唤醒(notify),并且还没到超时时间,这时就去争抢连接
+                    logger.debug("{} is trying to scramble for idle zkConnection", currentThread().getName());
+                }
+            } catch (InterruptedException e) {
+                e.printStackTrace();
             }
         }
 

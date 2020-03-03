@@ -165,6 +165,7 @@ public class ZKDistributedLock {
         }
         zkCliGroup.releaseZKConnection(zkCli);
 
+        CountDownLatch countDownLatch=new CountDownLatch(20);
         Thread[] t=new Thread[20];
         for(int i=0;i<t.length;++i){
             t[i]= new Thread(() -> {
@@ -183,11 +184,21 @@ public class ZKDistributedLock {
                 }finally {
                     lock.unlock(false);
                     zkCliGroup.releaseZKConnection(zkCli1);
+                    countDownLatch.countDown();
                 }
             });
         }
         for (Thread thread : t) {
             thread.start();
+        }
+
+        //清理资源
+        try {
+            countDownLatch.await();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }finally {
+            zkCliGroup.shutdown();
         }
     }
 }

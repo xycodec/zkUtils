@@ -41,9 +41,6 @@ public class ZKCliGroup {
 
     private ProxyZKCli[] proxyZKClis;
 
-    //连接状态数组,0代表空闲,1代表繁忙
-    private int[] states;
-
     //线程池状态
     private boolean closed;
 
@@ -53,7 +50,6 @@ public class ZKCliGroup {
         if(size>MAX_CONNECTIONS) this.size = MAX_CONNECTIONS;
         else this.size=size;
         this.proxyZKClis=new ProxyZKCli[size];
-        this.states=new int[size];
         this.closed =false;
         for(int i=0;i<size;++i){
             proxyZKClis[i]=new ProxyZKCli(zkAddr,new SimpleEventListener());
@@ -70,10 +66,9 @@ public class ZKCliGroup {
         if(closed) return null;
         while(true){
             for(int i=0;i<size;++i){
-                if(states[i]==0&&proxyZKClis[i].aliveProxyConnection()){//空闲状态
-                    states[i]=1;
+                if(!proxyZKClis[i].state.equals(State.externalAccessible)&&proxyZKClis[i].aliveProxyConnection()){//空闲状态
 //                    proxyZKClis[i].access=true;//warn: 当access为false时,貌似使用proxyZKClis[i].zkCli会出错,所以这句代码放到上面
-                    proxyZKClis[i].state= ProxyZKCli.State.externalAccessible;
+                    proxyZKClis[i].state=State.externalAccessible;
                     logger.debug("{} get zkConnection: {}", currentThread().getName(),proxyZKClis[i].zkCli);
                     return proxyZKClis[i].zkCli;
                 }
@@ -87,7 +82,6 @@ public class ZKCliGroup {
                 e.printStackTrace();
             }
         }
-
     }
 
     /**
@@ -100,10 +94,9 @@ public class ZKCliGroup {
         long future=System.currentTimeMillis()+mills;//未来发生超时的时间点
         while(true){
             for(int i=0;i<size;++i){
-                if(states[i]==0&&proxyZKClis[i].aliveProxyConnection()){//空闲状态
-                    states[i]=1;
+                if(!proxyZKClis[i].state.equals(State.externalAccessible)&&proxyZKClis[i].aliveProxyConnection()){//空闲状态
 //                    proxyZKClis[i].access=true;//warn: 当access为false时,貌似使用proxyZKClis[i].zkCli会出错,所以放到上面
-                    proxyZKClis[i].state= ProxyZKCli.State.externalAccessible;
+                    proxyZKClis[i].state=State.externalAccessible;
                     logger.debug("{} get zkConnection: {}", currentThread().getName(),proxyZKClis[i].zkCli);
                     return proxyZKClis[i].zkCli;
                 }
@@ -143,11 +136,10 @@ public class ZKCliGroup {
                 proxyZKClis[i]=new ProxyZKCli(zkAddr,new SimpleEventListener());
             }
             if(proxyZKClis[i].zkCli ==connection){//若连接是待释放连接
-                states[i]=0;//因为连接只能被一个线程持有,所以这里是线程安全的,不用CAS
                 //有连接空出来了,通知所有处于等待的线程
                 logger.debug("{} release zkConnection: {}", currentThread().getName(),proxyZKClis[i].zkCli);
 //                proxyZKClis[i].access=false;//warn: 当access为false时,貌似使用proxyZKClis[i].zkCli会出错,所以放到下面
-                proxyZKClis[i].state= ProxyZKCli.State.inaccessible;
+                proxyZKClis[i].state=State.externalInaccessible;
                 this.notifyAll();
             }
         }
@@ -171,11 +163,15 @@ public class ZKCliGroup {
             }
         }
         //help GC
-        states=null;
         zkAddr=null;
     }
 
 
+    enum State{
+        internalAccessible,
+        externalAccessible,
+        externalInaccessible
+    }
     private static class ProxyZKCli{
         private static final List<String> BLACK_LIST=new ArrayList<String>(){//外部不能访问的方法列表
             {
@@ -184,9 +180,7 @@ public class ZKCliGroup {
                 add("reConnect");
             }
         };
-        enum State{
-            internalAccessible,externalAccessible,inaccessible
-        }
+
         private volatile State state=State.internalAccessible;
         private volatile ZKCli zkCli;
 
@@ -196,7 +190,11 @@ public class ZKCliGroup {
         public ProxyZKCli(String zkAddress, ZKListener zkListener) {
             this.zkAddress = zkAddress;
             this.zkListener = zkListener;
-            this.zkCli = getProxyZKConnection();
+            this.zkCli = getProxyZKCli();
+        }
+
+        public ProxyZKCli(ZKCli zkCli) {
+            this.zkCli = zkCli;
         }
 
         private boolean checkState(Method method){
@@ -212,7 +210,7 @@ public class ZKCliGroup {
             }
         }
 
-        private ZKCli getProxyZKConnection(){
+        private ZKCli getProxyZKCli(){
             Enhancer enhancer=new Enhancer();
             enhancer.setSuperclass(ZKCli.class);
             enhancer.setCallback(new MethodInterceptor() {
@@ -233,7 +231,7 @@ public class ZKCliGroup {
             boolean flag=false;
             State tmpState=state;
             try {
-                if(state.equals(State.inaccessible)){
+                if(!state.equals(State.internalAccessible)){
                     state=State.internalAccessible;
                     flag=true;
                 }
@@ -249,7 +247,7 @@ public class ZKCliGroup {
             boolean flag=false;
             State tmpState=state;
             try {
-                if(state.equals(State.inaccessible)){
+                if(!state.equals(State.internalAccessible)){
                     state=State.internalAccessible;
                     flag=true;
                 }

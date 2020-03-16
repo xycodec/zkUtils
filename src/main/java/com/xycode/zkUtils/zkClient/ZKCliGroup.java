@@ -9,8 +9,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Method;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
+import java.util.ArrayList;
+import java.util.List;
 
 import static java.lang.Thread.currentThread;
 
@@ -41,19 +41,20 @@ public class ZKCliGroup {
 
     private ProxyZKCli[] proxyZKClis;
 
-    //连接状态数组,使用原子类型的array,0代表空闲,1代表繁忙
+    //连接状态数组,0代表空闲,1代表繁忙
     private int[] states;
 
     //线程池状态
-    private boolean isClosed;
+    private boolean closed;
 
     public ZKCliGroup(String zkAddr, int size) {
-        assert size>0&&size<=MAX_CONNECTIONS;
+        assert size>0;
         this.zkAddr=zkAddr;
-        this.size = size;
+        if(size>MAX_CONNECTIONS) this.size = MAX_CONNECTIONS;
+        else this.size=size;
         this.proxyZKClis=new ProxyZKCli[size];
         this.states=new int[size];
-        this.isClosed=false;
+        this.closed =false;
         for(int i=0;i<size;++i){
             proxyZKClis[i]=new ProxyZKCli(zkAddr,new SimpleEventListener());
         }
@@ -66,12 +67,13 @@ public class ZKCliGroup {
      * @return
      */
     public synchronized ZKCli getZKConnection(){
-        if(isClosed) return null;
+        if(closed) return null;
         while(true){
             for(int i=0;i<size;++i){
                 if(states[i]==0&&proxyZKClis[i].aliveProxyConnection()){//空闲状态
                     states[i]=1;
-                    proxyZKClis[i].access=true;//warn: 当access为false时,貌似使用proxyZKClis[i].zkCli会出错,所以放到上面
+//                    proxyZKClis[i].access=true;//warn: 当access为false时,貌似使用proxyZKClis[i].zkCli会出错,所以这句代码放到上面
+                    proxyZKClis[i].state= ProxyZKCli.State.externalAccessible;
                     logger.debug("{} get zkConnection: {}", currentThread().getName(),proxyZKClis[i].zkCli);
                     return proxyZKClis[i].zkCli;
                 }
@@ -94,13 +96,14 @@ public class ZKCliGroup {
      * @return
      */
     public synchronized ZKCli getZKConnection(long mills){
-        if(isClosed) return null;
+        if(closed) return null;
         long future=System.currentTimeMillis()+mills;//未来发生超时的时间点
         while(true){
             for(int i=0;i<size;++i){
                 if(states[i]==0&&proxyZKClis[i].aliveProxyConnection()){//空闲状态
                     states[i]=1;
-                    proxyZKClis[i].access=true;//warn: 当access为false时,貌似使用proxyZKClis[i].zkCli会出错,所以放到上面
+//                    proxyZKClis[i].access=true;//warn: 当access为false时,貌似使用proxyZKClis[i].zkCli会出错,所以放到上面
+                    proxyZKClis[i].state= ProxyZKCli.State.externalAccessible;
                     logger.debug("{} get zkConnection: {}", currentThread().getName(),proxyZKClis[i].zkCli);
                     return proxyZKClis[i].zkCli;
                 }
@@ -131,7 +134,7 @@ public class ZKCliGroup {
      * @param connection
      */
     public synchronized void releaseZKConnection(ZKCli connection){
-        if(isClosed) return;
+        if(closed) return;
         for(int i=0;i<size;++i){
             if(!proxyZKClis[i].aliveProxyConnection()){//检测到一个连接已失效,就重建一个连接
                 logger.warn("Detect ZKCliGroup's connection failure, try to create a new connection");
@@ -139,19 +142,28 @@ public class ZKCliGroup {
                 proxyZKClis[i].closeProxyConnection();
                 proxyZKClis[i]=new ProxyZKCli(zkAddr,new SimpleEventListener());
             }
-            if(proxyZKClis[i].zkCli==connection){//若连接是待释放连接
+            if(proxyZKClis[i].zkCli ==connection){//若连接是待释放连接
                 states[i]=0;//因为连接只能被一个线程持有,所以这里是线程安全的,不用CAS
                 //有连接空出来了,通知所有处于等待的线程
                 logger.debug("{} release zkConnection: {}", currentThread().getName(),proxyZKClis[i].zkCli);
-                proxyZKClis[i].access=false;//warn: 当access为false时,貌似使用proxyZKClis[i].zkCli会出错,所以放到下面
+//                proxyZKClis[i].access=false;//warn: 当access为false时,貌似使用proxyZKClis[i].zkCli会出错,所以放到下面
+                proxyZKClis[i].state= ProxyZKCli.State.inaccessible;
                 this.notifyAll();
             }
         }
     }
 
+    public int size(){
+        return this.size;
+    }
+
+    public boolean isClosed(){
+        return this.closed;
+    }
+
     //关闭连接池
     public void shutdown(){
-        isClosed=true;
+        closed =true;
         for(int i=0;i<size;++i){
             if(proxyZKClis[i]!=null){
                 proxyZKClis[i].closeProxyConnection();
@@ -165,7 +177,17 @@ public class ZKCliGroup {
 
 
     private static class ProxyZKCli{
-        private volatile boolean access;
+        private static final List<String> BLACK_LIST=new ArrayList<String>(){//外部不能访问的方法列表
+            {
+                add("close");
+                add("addAuth");
+                add("reConnect");
+            }
+        };
+        enum State{
+            internalAccessible,externalAccessible,inaccessible
+        }
+        private volatile State state=State.internalAccessible;
         private volatile ZKCli zkCli;
 
         private String zkAddress;
@@ -174,25 +196,30 @@ public class ZKCliGroup {
         public ProxyZKCli(String zkAddress, ZKListener zkListener) {
             this.zkAddress = zkAddress;
             this.zkListener = zkListener;
-            this.zkCli=getProxyZKCli();
+            this.zkCli = getProxyZKConnection();
         }
 
-        private boolean checkState(){
-            if(!access) {
-                logger.error("Illegal Operation: Closed Connection is inaccessible");
+        private boolean checkState(Method method){
+            if(state.equals(State.internalAccessible)) return true;
+            else if(state.equals(State.externalAccessible)){
+                if(BLACK_LIST.contains(method.getName())){
+                    logger.warn("Illegal Operation: inaccessible operation");
+                    return false;
+                }else return true;
+            }else{
+                logger.warn("Illegal Operation: Released Connection is inaccessible");
                 return false;
             }
-            return true;
         }
 
-        private ZKCli getProxyZKCli(){
+        private ZKCli getProxyZKConnection(){
             Enhancer enhancer=new Enhancer();
             enhancer.setSuperclass(ZKCli.class);
             enhancer.setCallback(new MethodInterceptor() {
                 @Override
                 public Object intercept(Object obj, Method method, Object[] args, MethodProxy proxy) throws Throwable {
-                    if(!checkState()){
-                        throw new IllegalStateException("Illegal Operation: Closed Connection is inaccessible");
+                    if(!checkState(method)){
+                        throw new IllegalStateException("Illegal Operation");
                     }
                     Object result=proxy.invokeSuper(obj,args);
                     return result;
@@ -202,26 +229,28 @@ public class ZKCliGroup {
         }
 
         private void closeProxyConnection() {
-            if(zkCli==null) return;
+            if(zkCli ==null) return;
             boolean flag=false;
+            State tmpState=state;
             try {
-                if(!access){
-                    access=true;
+                if(state.equals(State.inaccessible)){
+                    state=State.internalAccessible;
                     flag=true;
                 }
                 zkCli.close();
-                zkCli=null;//help GC
+                zkCli =null;//help GC
             }finally {
-                if(flag) access=false;
+                if(flag) state=tmpState;
             }
         }
 
         private boolean aliveProxyConnection(){
-            if(zkCli==null) return false;
+            if(zkCli ==null) return false;
             boolean flag=false;
+            State tmpState=state;
             try {
-                if(!access){
-                    access=true;
+                if(state.equals(State.inaccessible)){
+                    state=State.internalAccessible;
                     flag=true;
                 }
                 //如果一切正常的话,finally实际会在return之前执行,
@@ -231,7 +260,7 @@ public class ZKCliGroup {
                 //所以说access肯定是可访问的,zkCli.alive()可以正常执行
                 return zkCli.alive();
             }finally {
-                if(flag) access=false;
+                if(flag) state=tmpState;
             }
         }
 
@@ -241,11 +270,12 @@ public class ZKCliGroup {
         ZKCliGroup zkCliGroup=new ZKCliGroup("127.0.0.1:2181,127.0.0.1:2182,127.0.0.1:2183",5);
 
         //tip: test1
-//        ZKCli zkCli=zkCliGroup.getZKConnection();
-//        System.out.println(zkCli.alive());
-//        zkCliGroup.releaseZKConnection(zkCli);
-//        System.out.println(zkCli.alive());
-//        zkCliGroup.shutdown();
+        ZKCli zkCli=zkCliGroup.getZKConnection();
+        System.out.println(zkCli.alive());
+        zkCli.close();//非法操作
+        zkCliGroup.releaseZKConnection(zkCli);
+        System.out.println(zkCli.alive());//非法操作
+        zkCliGroup.shutdown();
 
         //tip: test2
 //        ZKCli[] zkClis=new ZKCli[5];
@@ -269,26 +299,26 @@ public class ZKCliGroup {
 
 
         //tip: test3,测试多线程并发的情况,如果getZKConnection()与releaseZKConnection()不是同步方法的话会有线程安全的问题
-        CountDownLatch countDownLatch=new CountDownLatch(20);
-        for(int i=0;i<20;++i){
-            new Thread(()->{
-               ZKCli zkCli=zkCliGroup.getZKConnection();
-                try {
-                    TimeUnit.SECONDS.sleep(2);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-                zkCliGroup.releaseZKConnection(zkCli);
-                countDownLatch.countDown();
-            }).start();
-        }
-
-        try {
-            countDownLatch.await();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-        zkCliGroup.shutdown();
-
+//        CountDownLatch countDownLatch=new CountDownLatch(20);
+//        for(int i=0;i<20;++i){
+//            new Thread(()->{
+//               ZKCli zkCli=zkCliGroup.getZKConnection();
+//               zkCli.alive();
+//                try {
+//                    TimeUnit.SECONDS.sleep(2);
+//                } catch (InterruptedException e) {
+//                    e.printStackTrace();
+//                }
+//                zkCliGroup.releaseZKConnection(zkCli);
+//                countDownLatch.countDown();
+//            }).start();
+//        }
+//
+//        try {
+//            countDownLatch.await();
+//        } catch (InterruptedException e) {
+//            e.printStackTrace();
+//        }
+//        zkCliGroup.shutdown();
     }
 }

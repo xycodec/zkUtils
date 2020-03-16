@@ -1,6 +1,6 @@
 zkutils.properties
 
 
-/target/
+/target/*
 
 

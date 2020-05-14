@@ -48,7 +48,7 @@ public class BinaryDistributedLock {
                 this.zkCli.registerDefaultListener(zkListener);
                 this.zkCli.triggerListener(lockPath);
                 try {
-                    logger.debug("Failed to acquire binaryLock,state={},so that is waiting..",this.state);
+                    logger.debug("Failed to acquire BinaryDistributedLock,state={},so that is waiting..",this.state);
                     countDownLatch.await();
                 } catch (InterruptedException e) {
                     e.printStackTrace();

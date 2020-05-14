@@ -13,7 +13,7 @@ rm -rf z2/data/version-2/
 rm -rf z3/data/version-2/
 rm -rf z4/data/version-2/
 
-echo "清理完成"
+echo "清理完成!"
 
 
 

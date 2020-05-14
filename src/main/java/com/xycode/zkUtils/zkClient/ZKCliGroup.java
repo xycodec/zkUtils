@@ -166,7 +166,7 @@ public class ZKCliGroup {
         zkAddr=null;
     }
 
-
+    //状态
     enum State{
         internalAccessible,
         externalAccessible,
@@ -268,12 +268,15 @@ public class ZKCliGroup {
         ZKCliGroup zkCliGroup=new ZKCliGroup("127.0.0.1:2181,127.0.0.1:2182,127.0.0.1:2183",5);
 
         //tip: test1
-        ZKCli zkCli=zkCliGroup.getZKConnection();
-        System.out.println(zkCli.alive());
-        zkCli.close();//非法操作
-        zkCliGroup.releaseZKConnection(zkCli);
-        System.out.println(zkCli.alive());//非法操作
-        zkCliGroup.shutdown();
+        try {
+            ZKCli zkCli=zkCliGroup.getZKConnection();
+            System.out.println(zkCli.alive());
+            zkCli.close();//非法操作
+            zkCliGroup.releaseZKConnection(zkCli);
+            System.out.println(zkCli.alive());//非法操作
+        }finally {
+            zkCliGroup.shutdown();
+        }
 
         //tip: test2
 //        ZKCli[] zkClis=new ZKCli[5];

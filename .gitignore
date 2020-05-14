@@ -3,4 +3,9 @@ zkutils.properties
 
 /target/*
 
+/src/main/resources/z1/*
+/src/main/resources/z2/*
+/src/main/resources/z3/*
+/src/main/resources/z4/*
+
 

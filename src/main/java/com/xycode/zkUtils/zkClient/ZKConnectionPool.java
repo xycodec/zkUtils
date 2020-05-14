@@ -194,16 +194,9 @@ public class ZKConnectionPool {
         }
 
         @Override
-        public void addAuth(String auth) {
-            logger.error("Illegal Operation: Add auth to connection externally");
-        }
-
-        @Override
         public void addAuth(String scheme, String auth) {
             logger.error("Illegal Operation: Add auth connection externally");
         }
-
-
 
     }
 

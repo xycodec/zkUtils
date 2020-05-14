@@ -4,7 +4,6 @@ import com.xycode.zkUtils.listener.SimpleEventListener;
 import com.xycode.zkUtils.listener.ZKListener;
 import com.xycode.zkUtils.zkClient.ZKCli;
 import com.xycode.zkUtils.zkClient.ZKCliGroup;
-import com.xycode.zkUtils.zkClient.ZKConnectionPool;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.WatchedEvent;
 import org.slf4j.Logger;
@@ -30,6 +29,9 @@ public class ZKDistributedLock {
     private String prevID;//前一个顺序ID,当前ZKCLi要等待它
 
     private ZKCli zkCli;//竞争分布式锁的zkCli
+
+    public ZKDistributedLock() {
+    }
 
     public ZKDistributedLock(String lockPath, ZKCli zkCli){
         this.lockPath=lockPath;
@@ -90,7 +92,7 @@ public class ZKDistributedLock {
         //指定监听prevID对应的路径
         final String prevPath=lockPath + "/" + prevID;
         zkCli.registerListener(listener, prevPath);
-        if (zkCli.exists(prevPath)) {//这里判断一下prevPath是否存在,因为tryLock到waitLock可能会有延迟以及chainBroken Exception与
+        if (zkCli.exists(prevPath)) {//这里判断一下prevPath是否存在,因为tryLock到waitLock可能会有延迟以及chainBroken Exception
             logger.debug("{} waiting for {}", curID,prevID);
             try {
                 countDownLatch[0].await();
@@ -146,12 +148,12 @@ public class ZKDistributedLock {
         unlock(true);
     }
 
-    //test, notice: 貌似这里使用测试框架会出错...
+    //test
     public static void main(String[] args) {
         final String ZKC_ADDRESS="127.0.0.1:2181,127.0.0.1:2182,127.0.0.1:2183";
         //notice: 这里使用自实现的ZKCliGroup来测试,
         //        只使用5个连接构成的连接池,提供给20个线程来使用,显然达到了连接复用的目的
-        //        暂时没发现什么问题
+        //        暂时没发现什么问题...
         ZKCliGroup zkCliGroup=new ZKCliGroup(ZKC_ADDRESS,5);
         ZKCli zkCli=zkCliGroup.getZKConnection();
         String path="/seqLockPath";
@@ -172,8 +174,8 @@ public class ZKDistributedLock {
                 ZKCli zkCli1 =zkCliGroup.getZKConnection();
                 //tip: 用法
                 ZKDistributedLock lock=new ZKDistributedLock(path, zkCli1);
+                lock.lock();
                 try{
-                    lock.lock();
                     //zkCli此时获得了锁,可以做一些独占的事情
                     logger.info("Agent-{} working...",lock.curID);
                     try {

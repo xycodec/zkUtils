@@ -8,6 +8,7 @@ import org.apache.zookeeper.data.ACL;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.TimeoutException;
@@ -16,7 +17,7 @@ import java.util.concurrent.TimeoutException;
  * ZKCli的读写操作,默认都是不激活监听器的,
  * 若需要激活监听器,需要手动指定isWatch,或者调用triggerXXX()
  */
-public class ZKCli implements AutoCloseable{
+public class ZKCli implements AutoCloseable {
     private ZooKeeper zk;
     private String zkAddress;
 
@@ -115,6 +116,7 @@ public class ZKCli implements AutoCloseable{
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
+        if (data == null) data = "";
         return zk.create(path, data.getBytes(), ids, CreateMode.PERSISTENT);
     }
 
@@ -122,19 +124,12 @@ public class ZKCli implements AutoCloseable{
         return createPersistent(path, data, ZooDefs.Ids.OPEN_ACL_UNSAFE, isWatch);
     }
 
-    /**
-     * create a persistent node
-     *
-     * @param path
-     * @param data
-     * @param ids  ACL
-     */
-    public String createPersistent(String path, String data, ArrayList<ACL> ids) throws KeeperException, InterruptedException {
-        return createPersistent(path, data, ids, false);
+    public String createPersistent(String path, String data) throws KeeperException, InterruptedException {
+        return createPersistent(path, data, false);
     }
 
-    public String createPersistent(String path, String data) throws KeeperException, InterruptedException {
-        return createPersistent(path, data, ZooDefs.Ids.OPEN_ACL_UNSAFE);
+    public String createPersistent(String path) throws KeeperException, InterruptedException {
+        return createPersistent(path, "");
     }
 
     //创建顺序的永久节点
@@ -146,17 +141,21 @@ public class ZKCli implements AutoCloseable{
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
+        if (data == null) data = "";
         return zk.create(path, data.getBytes(), ids, CreateMode.PERSISTENT_SEQUENTIAL);
-    }
-
-    public String createPersistentSeq(String path, String data, ArrayList<ACL> ids) throws KeeperException, InterruptedException {
-        return createPersistentSeq(path, data, ids, false);
     }
 
     public String createPersistentSeq(String path, String data, boolean isWatch) throws KeeperException, InterruptedException {
         return createPersistentSeq(path, data, ZooDefs.Ids.OPEN_ACL_UNSAFE, isWatch);
     }
 
+    public String createPersistentSeq(String path, String data) throws KeeperException, InterruptedException {
+        return createPersistentSeq(path, data, false);
+    }
+
+    public String createPersistentSeq(String path) throws KeeperException, InterruptedException {
+        return createPersistentSeq(path, "");
+    }
 
     /**
      * create a ephemeral node
@@ -176,6 +175,7 @@ public class ZKCli implements AutoCloseable{
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
+        if (data == null) data = "";
         return zk.create(path, data.getBytes(), ids, CreateMode.EPHEMERAL);
     }
 
@@ -183,12 +183,12 @@ public class ZKCli implements AutoCloseable{
         return createEphemeral(path, data, ZooDefs.Ids.OPEN_ACL_UNSAFE, isWatch);
     }
 
-    public String createEphemeral(String path, String data, ArrayList<ACL> ids) throws KeeperException, InterruptedException {
-        return createEphemeral(path, data, ids, false);
+    public String createEphemeral(String path, String data) throws KeeperException, InterruptedException {
+        return createEphemeral(path, data, false);
     }
 
-    public String createEphemeral(String path, String data) throws KeeperException, InterruptedException {
-        return createEphemeral(path, data, ZooDefs.Ids.OPEN_ACL_UNSAFE);
+    public String createEphemeral(String path) throws KeeperException, InterruptedException {
+        return createEphemeral(path, "");
     }
 
     //创建顺序的临时节点
@@ -200,19 +200,20 @@ public class ZKCli implements AutoCloseable{
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
+        if (data == null) data = "";
         return zk.create(path, data.getBytes(), ids, CreateMode.EPHEMERAL_SEQUENTIAL);
-    }
-
-    public String createEphemeralSeq(String path, String data, ArrayList<ACL> ids) throws KeeperException, InterruptedException {
-        return createEphemeralSeq(path, data, ids, false);
-    }
-
-    public String createEphemeralSeq(String path, String data) throws KeeperException, InterruptedException {
-        return createEphemeralSeq(path, data, ZooDefs.Ids.OPEN_ACL_UNSAFE, false);
     }
 
     public String createEphemeralSeq(String path, String data, boolean isWatch) throws KeeperException, InterruptedException {
         return createEphemeralSeq(path, data, ZooDefs.Ids.OPEN_ACL_UNSAFE, isWatch);
+    }
+
+    public String createEphemeralSeq(String path, String data) throws KeeperException, InterruptedException {
+        return createEphemeralSeq(path, data, false);
+    }
+
+    public String createEphemeralSeq(String path) throws KeeperException, InterruptedException {
+        return createEphemeralSeq(path, "");
     }
 
 
@@ -221,6 +222,7 @@ public class ZKCli implements AutoCloseable{
      *
      * @param path
      * @param data
+     * @param isWatch
      */
 
     public void writeData(String path, byte[] data, boolean isWatch) {
@@ -241,6 +243,7 @@ public class ZKCli implements AutoCloseable{
     public void writeStringData(String path, String data, boolean isWatch) {
         try {
             if (isWatch) zk.exists(path, true);//先注册监听器
+            if (data == null) data = "";
             zk.setData(path, data.getBytes(), -1);
         } catch (KeeperException e) {
             e.printStackTrace();
@@ -250,70 +253,41 @@ public class ZKCli implements AutoCloseable{
     }
 
     public void writeIntData(String path, Integer data) {
-        writeIntData(path, data, false);
-    }
-
-    public void writeIntData(String path, Integer data, boolean isWatch) {
-        try {
-            if (isWatch) zk.exists(path, true);//先注册监听器
-            zk.setData(path, data.toString().getBytes(), -1);
-        } catch (KeeperException e) {
-            e.printStackTrace();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
+        writeStringData(path, data.toString(), false);
     }
 
     public void writeLongData(String path, Long data) {
-        writeLongData(path, data, false);
-    }
-
-    public void writeLongData(String path, Long data, boolean isWatch) {
-        try {
-            if (isWatch) zk.exists(path, true);//先注册监听器
-            zk.setData(path, data.toString().getBytes(), -1);
-        } catch (KeeperException e) {
-            e.printStackTrace();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
+        writeStringData(path, data.toString(), false);
     }
 
     public void writeDoubleData(String path, Double data) {
-        writeDoubleData(path, data, false);
-    }
-
-    public void writeDoubleData(String path, Double data, boolean isWatch) {
-        try {
-            if (isWatch) zk.exists(path, true);//先注册监听器
-            zk.setData(path, data.toString().getBytes(), -1);
-        } catch (KeeperException e) {
-            e.printStackTrace();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
+        writeStringData(path, data.toString(), false);
     }
 
     @Deprecated
     public <T extends Serializable> void writeObjectData(String path, T t, boolean isWatch) throws IOException {
         byte[] bytes = null;
-        ByteArrayOutputStream bos = new ByteArrayOutputStream();
-        ObjectOutputStream oos = null;
-        try {
-            oos = new ObjectOutputStream(bos);
+        try (ByteArrayOutputStream bos = new ByteArrayOutputStream();
+             ObjectOutputStream oos = new ObjectOutputStream(bos)) {
             oos.writeObject(t);
             oos.flush();
             bytes = bos.toByteArray();
         } catch (IOException e) {
             e.printStackTrace();
-        } finally {
-            bos.close();
-            oos.close();
         }
         if (bytes == null) throw new IOException("Serializable failure");
         writeData(path, bytes, isWatch);
     }
 
+    /**
+     * 写入一个对象到zk中
+     *
+     * @param path 路径
+     * @param t    待写入到对象
+     * @param <T>  对象的类型,需实现Serializable接口
+     * @throws IOException 对象序列化失败时,抛出该异常
+     * @deprecated 目前的序列化方式效率较低, 不太建议使用
+     */
     @Deprecated
     public <T extends Serializable> void writeObjectData(String path, T t) throws IOException {
         writeObjectData(path, t, false);
@@ -352,6 +326,15 @@ public class ZKCli implements AutoCloseable{
         return Double.valueOf(readStringData(path));
     }
 
+    /**
+     * 从zk中读取数据,并反序列化成一个对象
+     *
+     * @param path zk路径
+     * @return 反序列化成的对象
+     * @throws ClassNotFoundException 待反序列化的数据不合法时,抛出该异常
+     * @throws IOException            数据读取失败时,抛出该异常
+     * @deprecated 目前的反序列化方式效率较低, 不太建议使用
+     */
     @Deprecated
     public Object readObjectData(String path) throws ClassNotFoundException, IOException {
         byte[] bytes = null;
@@ -498,89 +481,6 @@ public class ZKCli implements AutoCloseable{
 
     public void unregisterListener(String path) {
         unregisterListener(path, Watcher.WatcherType.Any);
-    }
-
-    public static void main(String[] args) {
-        //test
-//        String path="/listener";
-//        MyEventListener listener=new MyEventListener(path);
-//        //一开始的Watcher不能为null,后面倒是可以了...
-//        ZKCli zkCli=new ZKCli(Config.ZKC_ADDRESS, new Watcher() {
-//            @Override
-//            public void process(WatchedEvent event) {
-//
-//            }
-//        });
-//        try {
-//            zkCli.waitConnected(3000);
-//        } catch (TimeoutException e) {
-//            e.printStackTrace();
-//            return;
-//        }
-//        try {
-//            zkCli.createPersistent(path,"", ZooDefs.Ids.OPEN_ACL_UNSAFE);
-//            zkCli.writeStringData(path,"changed");
-//            zkCli.registerListener(listener);//Zookeeper中的watcher不是一个集合,只是一个实例...,这里就替换了之前的空监听器
-//            zkCli.writeStringData(path,"changed2");
-//            zkCli.registerListener(new MyEventListener("/s"));//这里替换了对"/listener"的监听器,后续的delete "/listener"将不会监听到
-//            zkCli.delete(path);
-//
-//            //试试新的"/s"的监听器,能监听到,说明成功替换了监听器
-//            zkCli.createPersistent("/s","", ZooDefs.Ids.OPEN_ACL_UNSAFE);
-//            zkCli.writeStringData("/s","changed3");
-//            zkCli.unregisterListener();//注销之前的监听器,下面的delete事件将不会监听到
-//            zkCli.delete("/s");
-//
-//            zkCli.close();
-//        } catch (KeeperException e) {
-//            e.printStackTrace();
-//        } catch (InterruptedException e) {
-//            e.printStackTrace();
-//        }
-
-
-//        ZKCli zkCli=new ZKCli(Config.ZKC_ADDRESS);
-//        String path="/PersistentSeq";
-//        try {
-//            if(!zkCli.exists(path))
-//                zkCli.createPersistent(path,"", ZooDefs.Ids.OPEN_ACL_UNSAFE);
-//            zkCli.createEphemeralSeq(path+"/1","", ZooDefs.Ids.OPEN_ACL_UNSAFE);
-//            String s=zkCli.createEphemeralSeq(path+"/1","", ZooDefs.Ids.OPEN_ACL_UNSAFE);
-//            System.out.println(s);
-//            zkCli.registerListener(new AbstractEventListener(s) {
-//                @Override
-//                protected void NodeCreatedHandler(WatchedEvent event) {
-//
-//                }
-//
-//                @Override
-//                protected void NodeDeletedHander(WatchedEvent event) {
-//                    System.out.println("[delete]: "+s);
-//                }
-//
-//                @Override
-//                protected void NodeDataChangedHandler(WatchedEvent event) {
-//
-//                }
-//            });
-////            List<String> l=zkCli.getChildren(path);
-////            for(String data:l){
-////                System.out.println(data);
-////            }
-//            zkCli.delete(s);
-//            zkCli.close();
-//        } catch (KeeperException e) {
-//            e.printStackTrace();
-//        } catch (InterruptedException e) {
-//            e.printStackTrace();
-//        }
-
-        //getChildren(),非递归方式获得子节点的名字集合
-//        ZKCli zkCli=new ZKCli(Config.ZKC_ADDRESS);
-//        for(String s:zkCli.getChildren("/a")){
-//            System.out.println(s);
-//        }
-
     }
 
 }

@@ -1,5 +1,4 @@
-package com.xycode.zkUtils.listener;
-
+import com.xycode.zkUtils.listener.AbstractEventListener;
 import com.xycode.zkUtils.zkClient.ZKCli;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.WatchedEvent;
@@ -9,9 +8,6 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-/**
- * 这仅是一个测试类,不建议使用,若有需求直接继承扩展AbstractEventListener/SimpleEventListener即可
- */
 public class MyEventListener extends AbstractEventListener {
     private static String ZKC_ADDRESS="127.0.0.1:2181,127.0.0.1:2182,127.0.0.1:2183";
     private static ZKCli zkCli=new ZKCli(ZKC_ADDRESS);

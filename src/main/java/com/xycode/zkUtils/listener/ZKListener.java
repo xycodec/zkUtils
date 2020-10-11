@@ -3,6 +3,8 @@ package com.xycode.zkUtils.listener;
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
 
+import java.io.IOException;
+
 public interface ZKListener extends Watcher {
 
     void NodeDeletedHandler(WatchedEvent event);

@@ -5,6 +5,8 @@ import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.WatchedEvent;
 import org.testng.annotations.Test;
 
+import java.io.IOException;
+
 /**
  * ClassName: SimpleEventListener
  *

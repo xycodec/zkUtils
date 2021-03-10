@@ -2,13 +2,13 @@ package com.xycode.zkUtils.zkClient;
 
 import com.xycode.zkUtils.listener.ZKListener;
 import com.xycode.zkUtils.zkClient.internel.ZKClientFactory;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.zookeeper.*;
 import org.apache.zookeeper.data.ACL;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.TimeoutException;
@@ -25,6 +25,18 @@ public class ZKCli implements AutoCloseable {
         this.zkAddress = zkAddress;
         try {
             this.zk = ZKClientFactory.createDefaultZKClient(zkAddress);
+        } catch (TimeoutException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public ZKCli(String zkAddress, String zkVerification) {
+        this.zkAddress = zkAddress;
+        try {
+            this.zk = ZKClientFactory.createDefaultZKClient(zkAddress);
+            if (StringUtils.isNotEmpty(zkVerification)) {
+                addAuth(zkVerification);
+            }
         } catch (TimeoutException e) {
             e.printStackTrace();
         }
@@ -302,12 +314,10 @@ public class ZKCli implements AutoCloseable {
     public byte[] readData(String path) {
         try {
             return zk.getData(path, false, null);
-        } catch (KeeperException e) {
-            e.printStackTrace();
-        } catch (InterruptedException e) {
+        } catch (KeeperException | InterruptedException e) {
             e.printStackTrace();
         }
-        return null;
+        return new byte[0];
     }
 
     public String readStringData(String path) {
